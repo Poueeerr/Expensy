@@ -160,7 +160,7 @@ const LoginFront = () =>{
                         </span>
                     </div>                    
                     <div className="button">
-                        <button >Login</button>        
+                        <button >Sign In</button>        
                     </div>
                     <div className="link">
                         <a onClick={toggleReg}>Don't have a account? Sign Up</a>
