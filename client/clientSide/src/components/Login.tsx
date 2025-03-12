@@ -158,7 +158,10 @@ const LoginFront = () =>{
                         <span onClick={() => setShowPassword(!showPassword)}>
                             {showPassword ? <AiFillEyeInvisible /> : <AiFillEye />}
                         </span>
-                    </div>                    <button >Login</button>        
+                    </div>                    
+                    <div className="button">
+                        <button >Login</button>        
+                    </div>
                     <div className="link">
                         <a onClick={toggleReg}>Don't have a account? Sign Up</a>
                     </div>

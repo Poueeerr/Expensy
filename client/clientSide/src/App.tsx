@@ -21,7 +21,7 @@ function App() {
         transition={{ duration: 1 }}
          className='titlePos'>
       <h1 className='title'>
-        Welcome to TemplateName
+        Welcome to Expensy
       </h1>      
       
       <h3 className='subtitle'>Control your expenses!</h3>
@@ -36,7 +36,7 @@ function App() {
         animate="visible"
         exit="hidden"
         variants={variants}
-        transition={{ duration: 3 }}
+        transition={{ duration: 2.3 }}
         className='loginPos'>
           <h1 className='subtitle'>Create an account!</h1>
           <p className='descriptionLogin'>It's free!</p>
