@@ -1,0 +1,14 @@
+Food
+Transportation
+Entertainment
+Utilities
+Rent
+Health
+Shopping
+Miscellaneous
+
+
+Categories:
+expense
+transaction
+entry
