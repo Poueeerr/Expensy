@@ -1,0 +1,27 @@
+select{
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ccc; 
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.container{
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background-color: rgb(255, 255, 255);
+    align-items: center;
+    
+}
+
+.chart{
+    width: 20%;
+    height: 20%;
+    margin: 10px;
+}
+.table{
+    padding: 10px;
+    position: relative;
+    margin: 10px;
+}

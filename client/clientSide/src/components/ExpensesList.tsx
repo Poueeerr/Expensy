@@ -16,9 +16,10 @@ interface ExpenseListProps {
   expensesData: Expense[];
   getDashboard: () => void;
   getCategories: () => void;
+  getMonths: () => void;
 }
 
-const ExpenseList: React.FC<ExpenseListProps> = ({ expensesData, getDashboard, getCategories }) => {
+const ExpenseList: React.FC<ExpenseListProps> = ({ expensesData, getDashboard, getCategories, getMonths }) => {
   const [edit, setEdit] = useState(false);
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
 
@@ -32,6 +33,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ expensesData, getDashboard, g
       await api.delete(`/expenses/${id}`);
       getDashboard();
       getCategories()
+      getMonths();
     } catch (error) {
       const err = error as AxiosError;
       alert("Erro ao deletar despesa");
@@ -62,11 +64,13 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ expensesData, getDashboard, g
               borderRadius: 20
             }}>
               <h2>Edit</h2>
-              <EditExpense expense={expenseToEdit} getDashboard={getDashboard} cancelEdit={cancelEdit} getCategories={getCategories} />
+              <EditExpense expense={expenseToEdit} getDashboard={getDashboard} cancelEdit={cancelEdit} getCategories={getCategories} getMonths={getMonths}/>
             </div>
              
           ) : 
     <div>
+        <AddExpense getDashboard={getDashboard} getCategories={getCategories} getMonths={getMonths}></AddExpense>
+    
       <table style={{ width: "100%", borderCollapse: "collapse", backgroundColor: "gray" }}>
         <thead>
           <tr>
@@ -93,7 +97,6 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ expensesData, getDashboard, g
           }
         </tbody>
       </table>
-      <AddExpense getDashboard={getDashboard} getCategories={getCategories}></AddExpense>
     </div>}
     </>
 

@@ -4,9 +4,10 @@ import { useState } from "react";
 interface AddExpenseProps {
     getDashboard: () => void;
     getCategories: () => void;
+    getMonths: () => void;
   }
 
-const AddExpense: React.FC<AddExpenseProps> = ({ getDashboard, getCategories }) => {
+const AddExpense: React.FC<AddExpenseProps> = ({ getDashboard, getCategories, getMonths }) => {
     const [formData, setFormData] = useState({
       description: "",
       amount: "",
@@ -26,6 +27,7 @@ const AddExpense: React.FC<AddExpenseProps> = ({ getDashboard, getCategories }) 
       e.preventDefault();
       try {
         await api.post("/expenses", formData);
+        getMonths();
         getDashboard();
         getCategories();
      } catch (error) {
@@ -46,6 +48,7 @@ const AddExpense: React.FC<AddExpenseProps> = ({ getDashboard, getCategories }) 
         />
   
         <input
+        
           type="number"
           name="amount"
           placeholder="Currency"
@@ -69,7 +72,6 @@ const AddExpense: React.FC<AddExpenseProps> = ({ getDashboard, getCategories }) 
         <select name="type" value={formData.type} onChange={handleChange}>
           <option value="Expense">Expense</option>
           <option value="Income">Income</option>
-          <option value="Transaction">Transaction</option>
         </select>
   
         <button type="submit">Add expense</button>

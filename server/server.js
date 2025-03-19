@@ -27,8 +27,8 @@ app.post("/users", async (req, res) => {
         }
         const hashedPassword = await bcrypt.hash(password, 10);
         
-        const query = "INSERT INTO users (name, email, password) VALUES($1, $2, $3) RETURNING *"
-        const result = await db.query(query, [name, email, hashedPassword]);
+        const query = "INSERT INTO users (name, email, password, balance) VALUES($1, $2, $3, $4) RETURNING *"
+        const result = await db.query(query, [name, email, hashedPassword, 0.00]);
         const token = jwt.sign(
             { id: user.id, email: user.email },
             process.env.ACCESS_TOKEN_SECRET,
@@ -114,8 +114,8 @@ app.delete(`/users`, authToken, async(req, res) =>{
 
 app.get("/expenses/categories", authToken, async(req, res)=>{
     try{
-        const query = "SELECT categories FROM expenses WHERE user_id = $1";
-        const result = await db.query(query, [req.user.id]);
+        const query = "SELECT categories FROM expenses WHERE user_id = $1 AND type = $2";
+        const result = await db.query(query, [req.user.id, "Expense"]);
         res.send(result.rows);
     }catch(error){
         console.log(error);
@@ -123,7 +123,18 @@ app.get("/expenses/categories", authToken, async(req, res)=>{
     }
 })
 
-app.post(`/expenses`, authToken, async (req, res) =>{
+app.get("/expenses/date", authToken, async(req, res)=>{
+    try{
+        const query = "SELECT date FROM expenses WHERE user_id = $1";
+        const result = await db.query(query, [req.user.id]);
+        const dates = result.rows.map(row => row.date);
+        res.send(dates)
+        }catch(error){
+        console.log(error)
+        res.status(500).send("Internal Error")
+    }
+})
+app.post(`/expenses`, authToken, async (req, res) => {
     const { amount, description, categories, type } = req.body;
 
     if (!amount || !description || !categories) {
@@ -132,10 +143,19 @@ app.post(`/expenses`, authToken, async (req, res) =>{
 
     try {
         const userId = req.user.id;
-        const expenseType = type !== undefined ? type : "expense";
+        const expenseType = type !== undefined ? type : "Expense";
 
         const query = "INSERT INTO expenses (user_id, amount, description, categories, type) VALUES ($1, $2, $3, $4, $5) RETURNING *";
         const result = await db.query(query, [userId, amount, description, categories, expenseType]);
+
+        let alterBalanceQuery;
+        if (expenseType === "Expense") {
+            alterBalanceQuery = "UPDATE users SET balance = balance - $1 WHERE id = $2";
+        } else {
+            alterBalanceQuery = "UPDATE users SET balance = balance + $1 WHERE id = $2";
+        }
+
+        await db.query(alterBalanceQuery, [amount, userId]);
 
         res.status(201).json(result.rows[0]);
     } catch (error) {
@@ -143,7 +163,6 @@ app.post(`/expenses`, authToken, async (req, res) =>{
         res.status(500).send("Internal Error");
     }
 });
-
 
 app.get(`/expenses`, authToken, async (req, res) =>{
 
@@ -169,6 +188,18 @@ app.put("/expenses/:id", authToken, async (req, res) => {
         let fields = [];
         let values = [];
         let counter = 1;
+        let oldAmount = 0;
+        let oldType = "";
+
+        const queryOld = "SELECT amount, type FROM expenses WHERE id = $1 AND user_id = $2";
+        const resultOld = await db.query(queryOld, [id, userId]);
+
+        if (resultOld.rows.length === 0) {
+            return res.status(404).json({ message: "Expense not found or not authorized" });
+        }
+
+        oldAmount = resultOld.rows[0].amount;
+        oldType = resultOld.rows[0].type;
 
         if (amount !== undefined) {
             fields.push(`amount = $${counter}`);
@@ -185,7 +216,7 @@ app.put("/expenses/:id", authToken, async (req, res) => {
             values.push(categories);
             counter++;
         }
-        if(type !== undefined){
+        if (type !== undefined) {
             fields.push(`type = $${counter}`);
             values.push(type);
             counter++;
@@ -199,11 +230,40 @@ app.put("/expenses/:id", authToken, async (req, res) => {
         values.push(userId);
 
         const query = `UPDATE expenses SET ${fields.join(", ")} WHERE id = $${counter} AND user_id = $${counter + 1} RETURNING *`;
-
         const result = await db.query(query, values);
 
         if (result.rows.length === 0) {
             return res.status(404).json({ message: "Expense not found or not authorized" });
+        }
+
+        const newAmount = result.rows[0].amount;
+        const newType = result.rows[0].type;
+
+        let balanceUpdateQuery;
+        if (newType !== oldType) {
+            if (oldType === "Expense") {
+                balanceUpdateQuery = "UPDATE users SET balance = balance + $1 WHERE id = $2";
+                await db.query(balanceUpdateQuery, [oldAmount, userId]);
+            } else {
+                balanceUpdateQuery = "UPDATE users SET balance = balance - $1 WHERE id = $2";
+                await db.query(balanceUpdateQuery, [oldAmount, userId]);
+            }
+
+            if (newType === "Expense") {
+                balanceUpdateQuery = "UPDATE users SET balance = balance - $1 WHERE id = $2";
+            } else {
+                balanceUpdateQuery = "UPDATE users SET balance = balance + $1 WHERE id = $2";
+            }
+            await db.query(balanceUpdateQuery, [newAmount, userId]);
+        } else {
+            const amountDifference = newAmount - oldAmount;
+            if (newType === "Expense") {
+                balanceUpdateQuery = "UPDATE users SET balance = balance - $1 WHERE id = $2";
+            } else {
+                balanceUpdateQuery = "UPDATE users SET balance = balance + $1 WHERE id = $2";
+            }
+
+            await db.query(balanceUpdateQuery, [Math.abs(amountDifference), userId]);
         }
 
         res.json(result.rows[0]);
@@ -213,6 +273,7 @@ app.put("/expenses/:id", authToken, async (req, res) => {
     }
 });
 
+
 app.delete("/expenses/:id", authToken, async (req, res) =>{
     const {id} = req.params;
     const userId = req.user.id;
@@ -220,6 +281,17 @@ app.delete("/expenses/:id", authToken, async (req, res) =>{
     try{
         const query = "DELETE FROM expenses WHERE id = $1 AND user_id = $2 RETURNING *";
         const result = await db.query(query, [id, userId]);
+
+        const { amount, type } = result.rows[0];
+
+        let alterBalanceQuery;
+        if (type === "Expense") {
+            alterBalanceQuery = "UPDATE users SET balance = balance + $1 WHERE id = $2";
+        } else {
+            alterBalanceQuery = "UPDATE users SET balance = balance - $1 WHERE id = $2";
+        }
+        await db.query(alterBalanceQuery, [amount, userId]);
+
         if (result.rows.length === 0) {
             return res.status(404).json({ message: "Expense not found or not authorized" });
         }

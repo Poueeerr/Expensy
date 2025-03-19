@@ -5,10 +5,11 @@ interface EditExpenseProps {
   expense: Expense;
   getDashboard: () => void;
   getCategories: () => void;
-  cancelEdit: () => void; // Function to cancel the edit and go back
+  cancelEdit: () => void; 
+  getMonths: () => void
 }
 
-const EditExpense: React.FC<EditExpenseProps> = ({ expense, getDashboard, cancelEdit, getCategories }) => {
+const EditExpense: React.FC<EditExpenseProps> = ({ expense, getDashboard, cancelEdit, getCategories, getMonths }) => {
   const [formData, setFormData] = useState({
     description: expense.description,
     amount: expense.amount,
@@ -39,6 +40,8 @@ const EditExpense: React.FC<EditExpenseProps> = ({ expense, getDashboard, cancel
       await api.put(`/expenses/${expense.id}`, formData);
       getDashboard();
       getCategories();
+      getMonths();
+
       cancelEdit();  
     } catch (error) {
       console.error("Error updating expense:", error);

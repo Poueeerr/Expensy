@@ -1,3 +1,8 @@
 :root{
     font-family: "Outfit", sans-serif;
 } 
+body {
+    margin: 0;
+    overflow-x: hidden;
+  
+  }
