@@ -2,7 +2,7 @@ const express = require("express")
 const app = express()
 const cors = require("cors"); 
 const port = 3000
-const db = require("./db")
+const db = require("./utils/db")
 const jwt = require('jsonwebtoken')
 require('dotenv').config();
 const bcrypt = require('bcrypt')
@@ -29,13 +29,7 @@ app.post("/users", async (req, res) => {
         
         const query = "INSERT INTO users (name, email, password, balance) VALUES($1, $2, $3, $4) RETURNING *"
         const result = await db.query(query, [name, email, hashedPassword, 0.00]);
-        const token = jwt.sign(
-            { id: user.id, email: user.email },
-            process.env.ACCESS_TOKEN_SECRET,
-            { expiresIn: "1h" }
-        );
-        
-        res.json({ token: token });
+        res.sendStatus(201);
     }
     catch(error){
         console.log(error.message);
@@ -148,14 +142,10 @@ app.post(`/expenses`, authToken, async (req, res) => {
         const query = "INSERT INTO expenses (user_id, amount, description, categories, type) VALUES ($1, $2, $3, $4, $5) RETURNING *";
         const result = await db.query(query, [userId, amount, description, categories, expenseType]);
 
-        let alterBalanceQuery;
         if (expenseType === "Expense") {
-            alterBalanceQuery = "UPDATE users SET balance = balance - $1 WHERE id = $2";
-        } else {
-            alterBalanceQuery = "UPDATE users SET balance = balance + $1 WHERE id = $2";
+            const alterBalanceQuery = "UPDATE users SET balance = balance - $1 WHERE id = $2";
+            await db.query(alterBalanceQuery, [amount, userId]);
         }
-
-        await db.query(alterBalanceQuery, [amount, userId]);
 
         res.status(201).json(result.rows[0]);
     } catch (error) {
@@ -240,31 +230,23 @@ app.put("/expenses/:id", authToken, async (req, res) => {
         const newType = result.rows[0].type;
 
         let balanceUpdateQuery;
-        if (newType !== oldType) {
-            if (oldType === "Expense") {
-                balanceUpdateQuery = "UPDATE users SET balance = balance + $1 WHERE id = $2";
-                await db.query(balanceUpdateQuery, [oldAmount, userId]);
-            } else {
-                balanceUpdateQuery = "UPDATE users SET balance = balance - $1 WHERE id = $2";
-                await db.query(balanceUpdateQuery, [oldAmount, userId]);
-            }
 
-            if (newType === "Expense") {
-                balanceUpdateQuery = "UPDATE users SET balance = balance - $1 WHERE id = $2";
-            } else {
-                balanceUpdateQuery = "UPDATE users SET balance = balance + $1 WHERE id = $2";
-            }
-            await db.query(balanceUpdateQuery, [newAmount, userId]);
-        } else {
+        if (oldType === "Expense" && newType === "Expense") {
             const amountDifference = newAmount - oldAmount;
-            if (newType === "Expense") {
-                balanceUpdateQuery = "UPDATE users SET balance = balance - $1 WHERE id = $2";
-            } else {
-                balanceUpdateQuery = "UPDATE users SET balance = balance + $1 WHERE id = $2";
-            }
-
-            await db.query(balanceUpdateQuery, [Math.abs(amountDifference), userId]);
+            balanceUpdateQuery = "UPDATE users SET balance = balance - $1 WHERE id = $2";
+            await db.query(balanceUpdateQuery, [amountDifference, userId]);
         }
+        else if (oldType === "Expense" && newType !== "Expense") {
+            // reverter gasto anterior
+            balanceUpdateQuery = "UPDATE users SET balance = balance + $1 WHERE id = $2";
+            await db.query(balanceUpdateQuery, [oldAmount, userId]);
+        }
+        else if (oldType !== "Expense" && newType === "Expense") {
+            // novo agora é gasto, subtrair
+            balanceUpdateQuery = "UPDATE users SET balance = balance - $1 WHERE id = $2";
+            await db.query(balanceUpdateQuery, [newAmount, userId]);
+        }
+
 
         res.json(result.rows[0]);
     } catch (error) {
@@ -273,36 +255,31 @@ app.put("/expenses/:id", authToken, async (req, res) => {
     }
 });
 
-
-app.delete("/expenses/:id", authToken, async (req, res) =>{
-    const {id} = req.params;
+app.delete("/expenses/:id", authToken, async (req, res) => {
+    const { id } = req.params;
     const userId = req.user.id;
 
-    try{
+    try {
         const query = "DELETE FROM expenses WHERE id = $1 AND user_id = $2 RETURNING *";
         const result = await db.query(query, [id, userId]);
-
-        const { amount, type } = result.rows[0];
-
-        let alterBalanceQuery;
-        if (type === "Expense") {
-            alterBalanceQuery = "UPDATE users SET balance = balance + $1 WHERE id = $2";
-        } else {
-            alterBalanceQuery = "UPDATE users SET balance = balance - $1 WHERE id = $2";
-        }
-        await db.query(alterBalanceQuery, [amount, userId]);
 
         if (result.rows.length === 0) {
             return res.status(404).json({ message: "Expense not found or not authorized" });
         }
 
-        res.status(200).json({ message: "Expense deleted successfully", deletedExpense: result.rows[0] });
-    }catch(error){
-        console.log(error);
-        res.status(500).send("Internal Error")
-    }
-})
+        const { amount, type } = result.rows[0];
 
+        if (type === "Expense") {
+            const alterBalanceQuery = "UPDATE users SET balance = balance + $1 WHERE id = $2";
+            await db.query(alterBalanceQuery, [amount, userId]);
+        }
+
+        res.status(200).json({ message: "Expense deleted successfully", deletedExpense: result.rows[0] });
+    } catch (error) {
+        console.log(error);
+        res.status(500).send("Internal Error");
+    }
+});
 
 
 function authToken(req, res, next){

@@ -60,12 +60,10 @@ const LoginFront = () =>{
                 password
             });
     
-            const token = response.data.token;
-            localStorage.setItem("token", token); 
-    
             console.log("Cadastro realizado com sucesso!");
-            navigate("/dashboard");
-
+            setTimeout(() => {
+                toggleReg();
+            }, 100);            
         } catch (error) {
             const err = error as AxiosError
 

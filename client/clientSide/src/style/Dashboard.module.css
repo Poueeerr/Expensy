@@ -12,16 +12,26 @@ select{
     flex-direction: column;
     background-color: rgb(255, 255, 255);
     align-items: center;
-    
 }
 
-.chart{
-    width: 20%;
-    height: 20%;
-    margin: 10px;
+.chart {
+    width: 80%; 
+    max-width: 400px; 
+    min-height: 200px; 
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 20px;
 }
+
+
 .table{
     padding: 10px;
-    position: relative;
     margin: 10px;
 }
+.logout {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+  }
+  

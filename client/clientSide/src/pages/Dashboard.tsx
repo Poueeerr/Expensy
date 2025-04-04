@@ -123,11 +123,7 @@ const Dashboard = () => {
                 )}
             </div>
             <div className={style.table}>
-                
-                
                     <ExpenseList expensesData={expenses} getDashboard={getDashboard} getCategories={getCategories}  getMonths={getMonths}/>
-            
-
             </div>
 
         </div>
